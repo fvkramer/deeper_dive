@@ -1,0 +1,15 @@
+Compile Time vs Runtime distinction
+code in C has compile time and runtime. langauge constructs such as variables an functions lost after 
+compile time. Become machine code
+
+therefore, C has no metaprogramming or introspection because code lost after compilation
+in C++, some language constructs survive compilation, therefore can ask object for its class.
+In java, distinction between compile time and runtime less clear.
+
+No compilation in Ruby. Dynamic, interpreted. metaprogramming
+ruby simple language, but has subtleties.
+
+"can an object call a private method on another object of the same class?
+"how can you define class methods by importing a module?
+
+all language complications derived from few rules
