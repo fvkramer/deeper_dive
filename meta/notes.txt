@@ -1,3 +1,5 @@
+Ch1
+
 Compile Time vs Runtime distinction
 code in C has compile time and runtime. langauge constructs such as variables an functions lost after 
 compile time. Become machine code
@@ -13,3 +15,67 @@ ruby simple language, but has subtleties.
 "how can you define class methods by importing a module?
 
 all language complications derived from few rules
+
+Ch2
+
+metaprogramming manipulates language constructs such as classes, modules, instance variable, etc.
+everything stems from "object model"
+
+ruby executes code within a class as it would execute any other code
+
+class D
+def x; 'x'; end
+end
+class D
+def y; 'y'; end
+end
+
+obj = D.new
+obj.x
+obj.y
+
+The first time this code is run, class D does not exist, therefore it creates it
+second time the code is run, class D exists so therefore the method is just monkey patched
+
+
+therefore, class keyword in Ruby closer to scope operator than class declaration
+creates classes that don't exist as a side effect. Main effect is to move into context o classes
+
+therefore, can always open existing classes and modify them on the fly. "monkey patching"
+or "Open Class"
+
+class String
+  def generic_method
+  end
+end
+
+libraries or modules that are imported can use open classes.
+
+problem is when overriding methods already existing on previous classes
+
+in Java and other languages, there is conneciton between object's class and its instance variables.
+in Ruby, there isn't.
+instance variables like keys in hash. each ruby object can have different keysvalues pairs
+
+enum.grep(pattern) -> returns array of every item that matches pattern
+
+instance variables belong to object. methods belong to class.
+similar to JS design. constructor function + methods on prototype
+
+"MyClass has a method named my_method" -> wrong. implies MyClass.my_method()
+"my_method is an instance method of MyClass" -> correct. 
+instance method when talking about it in terms of class. method when talking about it in relation to object
+
+
+String.instance_methods == "abc".methods  ---> true
+String.methods == "abc".methods  ---> false
+
+
+**** Classes are objects. ****
+
+.class -> instance of what class
+.superclass -> what inheriting from
+
+Array.superclass   -> Object
+Object.superclass   -> BasicObject
+BasicObject.superclass   -> nil
