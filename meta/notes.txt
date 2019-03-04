@@ -79,3 +79,19 @@ String.methods == "abc".methods  ---> false
 Array.superclass   -> Object
 Object.superclass   -> BasicObject
 BasicObject.superclass   -> nil
+
+In Ruby, Class and Module differ by three methods. [:new, :allocate, :superclass]
+
+Module meant to be included somewhere in code. Class meant to be instantiated. 
+can be used interchangeable though
+
+Modules directories. Constants files. Scoped underneath
+
+
+module M
+class C
+X = 'a constant'
+end
+C::X # => "a constant"
+end
+M::C::X # => "a constant"
