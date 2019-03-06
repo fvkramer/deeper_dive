@@ -59,7 +59,15 @@
 
     }
 
-    Viewport.prototype = {};
+    Viewport.prototype = {
+
+      scrollTo: function(x, y) {
+        
+        this.x = x - this.w * 0.5;
+        this.y = y - this.h * 0.5;
+      }
+
+    };
 
 
     let scaled_size = 32;
@@ -97,14 +105,13 @@
     let width = document.documentElement.clientWidth;
 
     const player = new Player(100, 100);
-    const viewport = new Viewport(0, 0, 100, 100);
+    const viewport = new Viewport(0, 0, 200, 200);
 
 
     const pointer = { x: player.x, y: player.y}
 
     function loop() {
       window.requestAnimationFrame(loop);
-
 
       let height = document.documentElement.clientHeight;
       let width = document.documentElement.clientWidth;
@@ -114,22 +121,31 @@
 
       context.imageSmoothingEnabled = false;
 
+      player.moveTo(pointer.x, pointer.y);
+      viewport.scrollTo(player.x, player.y);
+
       let x_min = Math.floor(viewport.x / scaled_size);
       let y_min = Math.floor(viewport.y / scaled_size);
-      
+      let x_max = Math.ceil((viewport.x + viewport.w) / scaled_size);
+      let y_max = Math.ceil((viewport.y + viewport.h) / scaled_size);
+
       //draw map
-      for (let x = 0; x < columns; x++) {
-        for (let y = 0; y < rows; y++) {
+      for (let x = x_min; x < x_max; x++) {
+        for (let y = y_min; y < y_max; y++) {
           let value = map[y * columns + x];
-          let tile_x = x * scaled_size;
-          let tile_y = y * scaled_size;
+          let tile_x = x * scaled_size - viewport.x + width * 0.5 - viewport.w * 0.5;
+          let tile_y = y * scaled_size - viewport.y + height * 0.5 - viewport.h * 0.5;
 
           context.drawImage(tile_sheet, value * sprite_size, 0, sprite_size, sprite_size, tile_x, tile_y, scaled_size, scaled_size)
         }
       }
 
-      player.moveTo(pointer.x, pointer.y)
-      context.drawImage(tile_sheet, 64, 0, sprite_size, sprite_size, player.x, player.y, scaled_size, scaled_size)
+      // viewport.x = pointer.x;
+      // viewport.y = pointer.y;
+      context.drawImage(tile_sheet, 64, 0, sprite_size, sprite_size, 
+                        Math.round(player.x - viewport.x + width * 0.5 - viewport.w * 0.5), 
+                        Math.round(player.y) - viewport.y + height * 0.5 - viewport.h * 0.5, 
+                        scaled_size, scaled_size)
     }
 
     const tile_sheet = new Image();
@@ -139,8 +155,8 @@
 
     context.canvas.addEventListener("click", event => {
 
-      pointer.x = event.pageX;
-      pointer.y = event.pageY;
+      pointer.x = event.pageX + viewport.x - width * 0.5 + viewport.w * 0.5;
+      pointer.y = event.pageY + viewport.y - height * 0.5 + viewport.h * 0.5;
 
     })
 
