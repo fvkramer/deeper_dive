@@ -87,6 +87,10 @@ can be used interchangeable though
 
 Modules directories. Constants files. Scoped underneath
 
+any reference beginning with uppercase letter, including names of classes and modules
+is a constant
+
+constants uniquely idenitifed by paths. constants use double colon as separator
 
 module M
 class C
@@ -95,3 +99,81 @@ end
 C::X # => "a constant"
 end
 M::C::X # => "a constant"
+
+::Y => # ' a root level constant '
+
+
+module M
+  class C
+    module M2
+      Module.nesting # => [M::C::M2, M::C, M]
+    end
+  end
+end
+
+Constants and files very similar. 
+
+
+module Rake
+  class Task
+    # ...
+
+module Rake is a container of constants. therefore, namespaced
+
+Rake::Task
+
+***
+Classes are just objects.Object are instance variables with link to class.
+object's methods live in object's class.
+
+Class object of class which is subclass of Module.
+
+
+****
+class TEXT -> class Text  --> error because monkeypatched module Text used by Action Mailer librray
+
+load('motd.rb') -> loads variables and constants. variables get deleted, constants do not. pollutes namespace.
+load('motd.rb', true) -> creates anonymous module to namespace constants, then deletes it
+
+require ' ' -> imports libraries
+
+
+***
+
+When method in Ruby called,
+
+1. Method Lookup
+  - when called, ruby looks into object's class and finds method there. (obj. just holds instance variabels. methods live in classes)
+  - receiver: object you call method on.  my_string.reverse()  my_string is receiver
+  - ancestor chain: superclass path traverse
+
+  - therefore, method lookup: ruby goes into receiver's class and climbs ancestors chain until it finds the method
+
+  - if no superclass specified, implicitly inherits from Object
+  - superclass is instance method on object classes for lookup
+  - class.ancestors gives ancestor chain. Kernel included even though its a module
+  - modules included in ancestral chain. module inserted above including class
+
+  module M1
+    def my_method
+    end
+  end
+
+  class C
+    include M1
+  end
+
+  class D < C; end
+
+  D.ancestors => [D, C, M1, Object, Kernel, BasicObject]
+
+  class C2
+    prepend M2
+  end
+
+  class D2 < C2; end
+
+  D2.ancestors => [D2, C2, M2, C2, Object, Kernel, BasicObject]
+  
+
+2. Method execution. Needs self.
