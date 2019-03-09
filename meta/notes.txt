@@ -312,3 +312,107 @@ def refresh(options = {})
 
   true
 end
+
+send calls methods dynamically.
+methods can also be defined dynamically
+
+class MyClass
+  define_method :my_method do |my_arg|
+    my_arg * 3
+  end
+end
+
+define_method ==>  can define name of method at runtime
+
+first refactoring
+
+class Computer
+  def initialize(computer_id, data_source)
+    @id = computer_id
+    @data_source = data_source
+  end
+
+  def mouse
+    component :mouse
+  end
+
+  def cpu
+    component :cpu
+  end
+
+  def keyboard
+    component :keyboard
+  end
+
+  def component(name)
+    info = @data_source.send "get_#{name}_info", @id
+    price = @data_source.send "get_#{name}_price", @id
+    result = "#{name.capitalize}: #{info} ($#{price})"
+    return "* #{result}" if price >= 100
+    result
+  end
+end
+
+
+class Computer
+  def initialize(computer_id, data_source)
+    @id = computer_id
+    @data_source = data_source
+  end
+
+   def self.define_component(name)
+    define_method(name) do
+      info = @data_source.send "get_#{name}_info", @id
+      price = @data_source.send "get_#{name}_price", @id
+      result = "#{name.capitalize}: #{info} ($#{price})"
+      return "* #{result}" if price >= 100
+      result
+    end
+   end
+
+   define_component :mouse
+   define_component :cpu
+   define_component :keyboard
+end
+
+data_source.methods.grep(/^get_(.*)_info$/) { Computer.define_component $1 }
+
+Above two solutions based on Dynamic Dispatch (send) and Dynamic Methods
+
+Next solution:
+
+Ghost Methods and dynamic proxies
+
+since no compiler to enforce method calls, can call a method that doesn't exist
+
+class Lawyer; end
+nick = Lawyer.new
+nick.talk_simple
+
+NoMethodError: undefined method 'talk_simple' for #<Lawyer:..."
+BasicObject#method_missing 
+
+
+class Lawyer
+  def method_missing(method, *args)
+    puts "You called: #{method}(#{args.join(', ')})"
+    puts "(You also passed it a block)" if block_given?
+  end
+end
+
+bob = Lawyer.new
+bob.talk_simple('a', 'b') do
+# a block
+end
+
+You called: talk_simple(a, b)
+(You also passed it a block)
+
+override:
+  def method_missing()
+  end
+
+Dynamic Proxy - object that catches ghost methods and forwards them to another object
+
+.responds_to?
+.instance_methods
