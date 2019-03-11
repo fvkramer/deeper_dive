@@ -416,3 +416,289 @@ Dynamic Proxy - object that catches ghost methods and forwards them to another o
 
 .responds_to?
 .instance_methods
+
+
+Ch. 4 Blocks
+
+Aside from blocks normally, blocks also control scope. Very important in metaprogramming
+
+blocks are one memeber of family of "callable objects" which include procs and lambdas
+
+blocks are an idea from functional programming languages such as LISP. idea architecture different than classes, objects
+
+
+Kernel#block_given?
+
+def a_method
+  return yield if block_given?
+  'no block'
+end
+
+
+module Kernel
+  def using(resource)
+    begin
+      yield
+    ensure
+      resource.dispose
+    end
+  end
+end
+
+whenever code runs, its made up of two things
+  - code itself
+  - its binding
+
+
+Kernel#local_variables
+  - lists all local variables in current scope
+
+Bindings in one scope separate from bindings in another scope
+
+top level instance variables / global variables
+
+@var = "top-level @var"
+$var = global level var
+
+Scope Gates 
+    - three places where program leaves previous scope and opens new one:
+        - Class definitions
+        - Module definitions
+        - Methods
+
+"Flattening Scope in Ruby"
+  - replace scope gate with method call, capture current bindings in closure, pass closure to method
+  pg. 83. review this. 
+
+BasicObject#instance_eval - evaluates block in context of an object
+
+class MyClass
+  def initialize
+    @v = 1
+  end
+end
+
+obj = MyClass.new
+
+obj.instance_eval do 
+  self
+  @v
+end
+
+block evaluated with receiver as self.
+Can call block passed to instance_eval a Context Probe - a snipet of code that dipped inside object to do something there
+
+
+
+class C
+  def initialize
+    @x = 1
+  end
+end
+
+class D
+  def twisted_method
+    @y = 2
+    C.new.instance_eval { "@x: #{@x}, @y: #{@y}" }
+  end
+end
+
+D.new.twisted_method # => "@x: 1, @y: "
+
+self switches, therefore @y is nil
+
+
+to merge @x and @y:
+
+
+class D
+  def twisted_method
+    @y = 2
+    C.new.instance_exec(@y)  {|y| "@x: #{@x}, @y: #{y}" }
+  end
+end
+
+D.new.twisted_method # => "@x: 1, @y: 2"
+
+This breaks encapsulation because self changes
+
+### Context probing also useful in testing: 
+
+In Padrino framework, there is a Logger class that manages all logging. Can context probe
+in tests instead of creating new class
+
+
+should 'not log static assets by default' do
+  # ...
+  get "/images/something.png"
+  assert_equal "Foo", body
+  assert_match "", Padrino.logger.log.string
+end
+
+should 'allow turning on static assets logging' do
+  Padrino.logger.instance_eval{ @log_static = true }
+  # ...
+  get "/images/something.png"
+  assert_equal "Foo", body
+  assert_match /GET/, Padrino.logger.log.string
+  Padrino.logger.instance_eval{ @log_static = false }
+
+
+Callable Objects
+
+  - most things in ruby are objects, except for blocks
+  - however, blocks can be stored and executed later ( Proc is a block that has been stored into object )
+    - inc = Proc.new {|x| x + 1 }
+      inc.call(2)
+
+Ruby also defines two Kernel methods to convert block into Proc:
+  
+  1. lambda
+    
+    dec = lambda {|x| x + 1}
+    dec.class     # => Proc
+    dec.call(2)    # => 3
+
+  2. proc
+
+    dec = proc {|x| x + 1}
+
+  The & operator
+    1. want to pass block to another method ( or another block )
+    2. want to convert block into Proc
+
+  to say "I want to use this block", need to attach binding to it.
+  Must be last argument in method and prefaced with an &
+
+  def math(a,b)
+    yield(a, b)
+  end
+
+  def do_math(a,b, &operation)
+    math(a, b, &operation)
+  end
+
+  do_math(2, 3) {|x, y| x * 6}   #=> 6
+
+The real
+meaning of the & is this: “I want to take the block that is passed to this method
+and turn it into a Proc.” Just drop the &, and you’ll be left with a Proc again:
+
+def my_method(&the_proc)
+  the_proc
+end
+
+To convert back, use & again
+
+def my_method(greeting)
+  '#{greeting}, #{yield}'
+end
+
+my_proc = proc {"Bill"}
+my_method("hello", &my_proc)
+
+Procs vs. Lambdas 
+
+.lambda?  => true or false if lambda
+
+Lambda return keyword returns from lambda. For Proc, it returns out of scope
+
+def another_double
+  p = Proc.new { return 10 }
+  result = p.call
+  return result * 2 # unreachable code!
+end
+
+another_double  #=> 10
+
+p = Proc.new { return 10 }
+double(p)    #=>  LocalJumpError
+
+return 10    #=> LocalJumpError
+  tries to return from top level scope where p defined. gives error
+
+2nd DIFFERENCE
+
+The way they check arguments
+
+Arity of two means it accepts two arguments
+
+If calling lambda with wrong arity, it fails with ArgumentError
+If calling proc with wrong arity, it fills arguments with own expectations
+
+
+
+Method Objects
+
+class MyClass
+  def initialize(value)
+    @x = value
+  end
+
+  def my_method
+    @x
+  end
+end
+
+object = MyClass.new(1)
+m = object.method :my_method
+m.call
+
+Kernel#method   => returns method object that is callable
+
+lambda evaluated in scope its defined in (it's a closure)
+method object valued in scope of its object
+
+Unbound Method
+  - method detached from original class or module
+  - Method#unbind
+
+Callable Objects - snippets of code that can evaluate and carry own scope with them
+  - Blocks, Procs, Lambdas, Methods
+
+  **DSL - language that focuses on specific domain
+    - most general purpose languages not created for specific problem
+      -ex: Money in Java
+    GPL (General Purpose Language - C++ , Ruby)
+
+    Internal DSL - language that lives within a larger, general-purpose language
+    Languages that have own parser are called external DSLs.
+
+
+DSL
+
+def event(description)
+  puts "ALERT: #{description}" if yield
+end
+load 'events.rb'
+
+event 'an event that always happens' do
+  true
+end
+
+event 'an event that never happens" do
+  false
+end
+
+
+setup do
+  puts "Setting up sky"
+  @sky_height = 100
+end
+
+setup do
+  puts "Setting up mountains"
+  @mountains_height = 200
+end
+
+event "the sky is falling" do
+  @sky_height < 300
+end
+
+event "it's getting closer" do
+  @sky_height < @mountains_height
+end
+
+event "whoops... too late" do
+  @sky_height < 0
+end
