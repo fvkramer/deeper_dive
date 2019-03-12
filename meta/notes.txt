@@ -702,3 +702,212 @@ end
 event "whoops... too late" do
   @sky_height < 0
 end
+
+
+
+Ch. 5 Class Definitions
+
+when defining a class, not just dictting how objects behave in future, but also running code
+
+1. Class Macros       2. Around Aliases     3. Singleton Classes
+
+
+class MyClass
+  puts 'Hello'
+end
+
+> Hello
+
+result = class MyClass
+  self
+end
+
+> result #=> MyClass
+
+Whenever in a Ruby program, always have a current object ( self )
+Likewise, always have a current class (or module )
+
+How to find current Class?
+
+  1. At top of program, current class is Object, the class of main. (when defining method at top level, method instance method of Object)
+  2. In a method, current class is the class of the current object
+  3. When opening class with the class keyword (or module with the module keyword) that class becomes current class
+
+How to obtain class you don't know the name of?
+For example, if want to add a method to a class?
+
+def add_method_to(a_class)
+  # TODO: define method m() on a_class
+end 
+
+like adding CRUD to Rails
+
+class_eval()
+
+Module#class_eval   evaluates block in context of existing class:
+
+def add_method_to(a_class)
+  a_class.class_eval do
+    def m
+      'Hello!'
+    end
+  end 
+end
+
+add_method_to String
+"abc".m     #=>   "Hello!"
+
+instance_eval     -     only changes self
+class_eval        -     changes self and current class
+
+
+Conclusion: If have reference to class, can open class with class_eval or module_eval
+
+Class Instance Variables
+
+class MyClass
+  @my_var = 1
+  def self.read; @my_var; end
+  def write; @my_var = 2; end
+  def read; @my_var; end
+end
+
+obj = MyClass.new
+obj.read      #=> nil
+obj.write
+obj.read      #=> 2
+MyClass.read  #=> 1
+
+two instance variables are made in two different scopes
+
+Class instance variable can be accessed only by class itself
+
+- can also use class variables, denoted @@
+- to store instance variables in a class
+
+class C
+  @@v = 1
+end
+
+class variables different from class instance variables. class variables can be accessed
+by subclasses and by regular instance methods
+
+One problem:
+
+@@v = 1
+
+class MyClass
+  @@v = 2
+end
+
+@@v     #=> 2
+
+Class variables dont belong to classes, they belong to class hierarchies. since
+@@v defined in context of main, it belong's to main's class Object and to all descendents
+
+
+Singleton Methods
+
+Ruby allows you to add a method to a single object
+
+str = "regulat string"
+
+def str.title?
+  self.upcase == self
+end
+
+str.title?
+str.methods.grep(/title?/) 
+str.singleton_methods
+
+In static languages such as Java, object has type T because it belongs to class T
+In dynammic language such as Ruby, the "type" of an object not related to class. it's the 
+set of methods to which an object can respond
+
+only matters if object responds to method
+
+Classes are just objects and class names are constants
+
+class methods are just singleton methods
+
+
+Class Macros
+
+ruby objects don't have attributes
+
+class MyClass
+  def my_attribute=(value)
+    @my_attribute = value
+  end
+
+  def my_attribute
+    @my_attribute
+  end
+end
+
+obj = MyClass.new
+obj.my_attribute = 'x'
+obj.my_attribute    #=> 'x'
+
+class MyClass
+  attr_accessor :my_attribute
+end
+
+Module::attr_*
+
+class methods that are used in class definition. Appear like keywords because self is implicit
+
+Class Macros Applied
+
+class Book
+  def title # ...
+
+  def subtitle # ...
+
+  def lend_to(user)
+    puts "Lending to..."
+
+  def self.deprecate(old_method, new_method)
+    define_method(old_method) do |*args, &block|
+      warn "Warning: #{old_method}() is deprecated. Use #{new_method}()."
+      send(new_method, *args, &block)
+    end
+  end
+
+  deprecate :GetTitle, :title
+  deprecate :LEND_TO_USER, :lend_to
+  deprecate :title2, :subtitle
+
+end
+
+
+Singleton Advanced
+
+normal method lookup of object or class method means going into class and then up inheritance.
+
+where do singleton methods belong? 
+  - they can't live on objects and cannot live on classes or else become instance methods
+
+objects in ruby can have hidden class called:
+    - singleton class
+    - metaclass
+    - eigenclass
+
+To get into scope of singleton class,
+
+class << an_object
+  //code here
+end
+
+
+"abc".singleton_class
+singleton classes have only single instance and can't be inherited. 
+singleton class is where object's Singleton Methods live
+
+
+Method Wrappers
+
+- wrap a method inside another method
+
+
+

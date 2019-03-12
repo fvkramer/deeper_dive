@@ -68,9 +68,23 @@
 
 #######################
 
-def my_method(&prc)
-  prc
+# def my_method(&prc)
+#   prc
+# end
+
+# p = my_method { "Hello" }
+# p p.class
+
+###############
+
+def add_method_to a_class
+  a_class.class_eval do
+    def mkgg
+      p 'Hello'
+    end
+  end
 end
 
-p = my_method { "Hello" }
-p p.class
+add_method_to String
+
+'abc'.mkgg
