@@ -908,6 +908,103 @@ singleton class is where object's Singleton Methods live
 Method Wrappers
 
 - wrap a method inside another method
+- if there is method that other code uses, but you need to change its functionality,
+wrap it in another method to get more functionality - aliases
 
 
+can alias names
+
+class MyClass
+  def my_method; 'my_method()'; end
+  alias_method :m, :my_method
+end
+
+obj = MyClass.new
+obj.my_method == obj.m
+
+aliasing common in all Ruby code and libraries. for ex: String#size == String#length
+
+class String
+  alias_method :size, :length
+
+More Method Wrappers
+
+refinement - patch of code slapped directly over class
+One more thing... - if call super from a refined method, can call the original unrefined method
+
+module StringRefinement
+  refine String do
+    def length
+      super > 5 ? 'long' : 'short'
+    end
+  end
+end
+
+using StringRefinement
+
+'War and Peace'.length      # => "long"
+
+
+ch. 6
+
+Kernel#eval           - code is just text
+
+eval takes a string that contains ruby code and evaluates it
+
+array = [10, 20]
+element = 30
+eval("array << element")    #=>     [10, 20, 30]
+    - useful when dynamically evaluating code
+
+POSSIBLE_VERBS = ['get', 'put', 'post', 'delete']
+
+POSSIBLE_VERBS.each do |m|
+  eval <<-end_eval
+    def #{m}(path, *args, &b)
+      r[path].#{m}(*args, &b)
+    end
+  end_eval
+end
+
+
+Binding Objects
+  - whole scope packaged as object
+  - can create a Binding to capture local scope and carry it around
+    - can then execute code in that scope by using Binding object with eval
+
+class MyClass
+  def my_method
+    @x
+    binding
+  end
+end
+
+b = MyClass.new.my_method
+
+eval "@x", b      #=> 1
+
+instance_eval and class_eval can also take strings
+
+array = ['a', 'b', 'c']
+x = 'd'
+
+array.instance_eval 'self[1] = x'
+array   #=> ['a', 'd', 'c']
+
+####
+The biggest problem with string eval is security
+
+Code Injection
+
+def explore_array(method)
+  code = "['a', 'b', 'c'].#{method}"
+  puts "Exploring: #{code}"
+  eval code
+end
+
+works fine, unless someone injects code. for example:
+
+object_id; Dir glob('*')  ->  gets object_id and then lists all files in directory
+
+Can now run all sorts of code to affect computer
 
