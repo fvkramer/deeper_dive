@@ -1008,3 +1008,92 @@ object_id; Dir glob('*')  ->  gets object_id and then lists all files in directo
 
 Can now run all sorts of code to affect computer
 
+One way to protect against user input is with
+
+$SAFE global variable
+
+[1 - 4]
+
+
+How ERB works:
+ex:
+
+  <p><strong>Wake up!</strong>It's sunny <%= Time.new.strftime("%A) %></p>
+
+  require 'erb'
+  erb = ERB.new(File.read('template.rhtml'))
+  erb.run
+
+
+## need methodt o take snippet of Ruby code extraced from template and pass it to eval
+
+  class ERB
+    def result(b=new_toplevel)
+      if @safe_level
+        proc {
+          $SAFE = @safe_level
+          eval(@src, b, (@filename || '(erb)'), 0)
+        }.call 
+      else
+        eval(@src, b, (@filename || '(erb'), 0)
+      end
+    end
+  end
+
+  ####
+  new_toplevel is a method that retusn copy of TOPLEVEL_BINDING
+  @src contains content of code tag
+  @safe_level contains safe level required by user
+  uses Proc as clean room to evaluated code in separate scope
+
+
+  Kernel#load and Kernel#require take name of a source file and execute code from that file
+  Similar to how eval works. Similar to evaluating a string
+
+
+  Hook Methods
+
+    - hook methods are methods that can catch object model events.
+        ex:   classes inherited, modules mixed into classes, methods defined, etc.
+
+  class String
+    def self.inherited(subclass)
+      puts "#{self} was inherited by #{subclass}"
+    end
+  end
+
+  class MyString < String; end
+
+  > String was inherited by MyString
+
+  can override this method to do useful stuff
+
+  Ruby provides many hooks. Can override all of these
+
+  Module#included, #prepended, #method_added, #method_removed, #method_undefined
+
+  Module#included one of the most widely used hooks
+
+  ex:
+
+
+  module M; end
+
+  class C
+    def self.include(*modules)
+      puts "Called: C.include(#{modules})"
+      super
+    end
+
+    include M
+  end
+
+  > Called: C.include(M)
+
+  There is difference between Module#include and Module#included. Module#included
+  is specifically a hook method. Made for when module gets included. Module#include is an instance method
+  that actually needs to include some code. That is why in above exaple, we call super 
+  to preserve functionality of original include method
+  
+
+
