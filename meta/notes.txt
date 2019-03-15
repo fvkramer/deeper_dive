@@ -1107,3 +1107,5 @@ most important class. Subclasses classes create objects from DB.
 class macros like has_many, belongs_to
 ghost methods that define attributes
 automatically maps Duck objects to ducks table
+
+autload is class macro. Finds the proper code
