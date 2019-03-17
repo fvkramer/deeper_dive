@@ -1109,3 +1109,115 @@ ghost methods that define attributes
 automatically maps Duck objects to ducks table
 
 autload is class macro. Finds the proper code
+
+
+module ActiveRecord
+  module Validations
+    def self.included(base)
+      base.extend ClassMethods
+    end
+
+    module ClassMethods
+      def validats_length_of(*attrs)
+    end
+
+    def valid?
+    end
+  end
+end
+
+1. Instance methods of Validations becomes instance methods of ActiveRecord
+2. Ruby calls ::included class method passing ActiveRecord::Base into base argument
+    - this makes instance methods of ClassMethods class methods of ActiveRecord::Base
+    - modules includer is called 'base class'
+
+
+### Problem if multiple include/extends in code. If a second level inclusion,
+first level inclusion receives class methods of second level inclusion
+
+ActiveSupport::Concern
+
+  - attempts to solve above problem
+Concern gives instance methods and class methods
+
+require 'active_support'
+
+module MyConcern
+  extend ActiveSupport::Concern
+
+  def an_instance_method; "an instance method"; end
+
+  module ClassMethods
+    def a_class_method; "a class method"; end
+  end
+end
+
+class MyClass
+  include MyConcern
+end
+
+MyClass.new.an_instance_method    #=> an instance method
+MyClass.a_class_method          #=> a class method
+
+#######
+
+module ActiveSupport
+  module Concern
+    class MultipleIncludedBlocks < StandardError    #:nodoc;
+      def initialize
+        super "Cannot define multiple 'included' blocks for a Concern"
+      end
+    end
+
+    def self.extended(base)
+      base.instance_variable_set(:@_dependencies, [])
+    end
+  end
+end
+
+
+
+Module#append_features      -  method part of Ruby library. append_features called 
+just like included, however it is initially empty. only exists if you want to override it
+
+module M
+  def self.append_features(base); end
+end
+
+class C
+  include M
+end
+
+C.ancestors   #   =>  [ C, Object, Kernel, BasicObject ]
+  # overwriting append_features => module M not included in ancestry
+
+module ActiveSupport
+  module Concern
+    def append_features(base)
+      if base.instance_variable_defined?(:@_dependencies)
+        base.instance_variable_get(:@_dependencies) << self
+        return false
+      else
+        return false if base < self
+        @_dependencies.each { |dep| base.send(:include, dep) }
+        super
+        base.extend const_get(:ClassMethods) \
+          if const_defined?(:ClassMethods)
+          # ...
+      end
+    end
+  end
+end
+
+
+In Summary:
+
+  Concern is a minimalist dependency management system wrapped into a single module
+  In most languages, there aren't many ways to bind components together. Some inherit
+  or others delegate to an object. to get fancy, can create library to manage dependencies
+
+  * Metaprogramming should keep things simple. If it gets too convoluted, most likely trash it
+
+Ch. 11  - Rise and Fall of alias_method_chain
+    
+
