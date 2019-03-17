@@ -1220,4 +1220,484 @@ In Summary:
 
 Ch. 11  - Rise and Fall of alias_method_chain
     
+    alias_method (target, feature) => creates two aliases
+
+    protected - methods can be called by any instance of defining class or subclasses
+            - supports explicit receivers
+    private   - can only be called from within the calling object
+
+Ch. 12  - Attribute Methods
+
+
+require 'active_record'
+ActiveRecord::Base.establish_connection :adapter  =>  'sqlite3',
+                                        :database   =>  'dbfile'
+
+ActiveRecord::Base.connection.create_table :tasks do |t|
+  t.string    :description
+  t.boolean   :completed
+end
+
+class Task < ActiveRecord::Base; end
+
+task = Task.new
+task.description = 'Clean up garage'
+task.completed = true
+task.save
+
+task.description
+task.completed?
+
+
+When Ruby searching for method, walks up entire ancestor chain and then calls
+method_missing if nothing found
+
+
+Ruby Idioms
+
+  Mimic Methods - used to make code cleaner. people often mistake puts for language keyword, but actually a method
+
+  puts 'Hello, world'
+  puts('Hello, world')
+
+  obj.my_attriute = 'some value'
+  obj.my_attribute=('some value')
+
+  mimicry - animal disguising itself as another species
+
+
+  class Help < R '/help'
+  end
+
+  In this context, R is a method that takes '/help' as arg and returns a class
+
+
+  Nil Guard
+
+  a ||= []
+
+class MyClas
+  attr_accessor :my_attribute
+
+  def set_attribute(n)
+    my_attribute = n
+  end
+end
+
+obj = MyClass.new
+obj.set_attribute 10
+obj.my_attribute        #=>     nil
+
+Result: Ruby confused whether assignment to local variable caleld my_attribute
+or a call to a Mimic Method called my_attribute=. When in doubt, Ruby defaults to former
+
+to Solve:
+
+  def set_attribute(n)
+    self.my_attribute = n
+  end
+
+module Faraday
+  class << self
+    def new(url = nil, options = {})
+      #...
+      Faraday::Connection.new(url, options, &block)
+    end
+  end
+end
+
+['a', 'b', 'c'].push('d').shift.tap { |x| puts x }.upcase.next
+
+class Object
+  def tap
+    yield self
+    self
+  end
+end
+
+Symbol#to_proc
+
+class Symbol
+  def to_proc
+    Proc.new { |x| x.send(self)}
+  end
+end
+
+
+DSL
+
+langauge that focuses on specific problem
+
+
+
+SPELLS
+
+###   AROUND ALIAS
+  - call the previous, aliased version of a method from a redefined method
+
+class String
+  alias_method :old_reverse, :reverse
+
+  def reverse
+    "x#{old_reverse}x
+  end
+end
+
+"abc".reverse  #=> "xcbax"
+
+###   BLANK SLATE
+  - remove methods from an object to turn them into Ghost Methods
+
+class C
+  def method_mission(name, *args)
+    "a Ghost Method"
+  end
+end
+
+obj = C.new
+obj.to_s      #=>   "#<C:0x007fbb2a10d2f8>"
+
+class D < BasicObject
+  def method_mission(name, *args)
+    "a Ghost Method"
+  end
+end
+
+blank_slate = D.new
+blank_slate.to_s    #=>   "a Ghost Method"
+
+Class Instance Variable
+
+class C
+  @my_class_instance_variable = "some value"
+
+  def self.class_attribute
+    @my_class_instance_variable
+  end
+end
+
+C.class_attribute   #=> "some value"
+
+
+Class Macro
+  - use class method in class definition
+
+  class C; end
+
+  class << C
+    def my_macro(arg)
+      "my_macro(#{arg}) called"
+    end
+  end
+
+  class C
+    my_macro :x   #=> "my_macro(x) called"
+  end
+
+
+Clean Room
+  - use an object as environment in which to evaluate block
+
+  class CleanRoom
+    def a_useful_method(x); x * 2; end
+  end
+
+  CleanRoom.new.instance_eval { a_useful_method(3) }   #=>  6
+
+Code Processor
+
+File.readlines("a_file_containing_lines_of_ruby.txt").each do |line|
+  puts "#{line.chomp} ==> #{eval(line)}"
+end
+
+# >> 1 + 1 ==> 2
+# >> 3 * 2 ==> 6
+# >> Math.log10(100) ==> 2.0
+
+Context Probe
+  -  execute a block to access information in an object's context
+
+class C
+  def initialize
+    @x = "a private instance variable"
+  end
+end 
+
+obj = C.new
+obj.instance_eval { @x }
+
+Deferred Evaluation
+  - store a piece of code and its context in proc or lambda for evaluation later
+
+class C
+  def store(&block)
+    @my_code_capsule = block
+  end
+
+  def execute
+    @my_code_capsule.call
+  end
+end
+
+obj = C.new
+obj.store { $X = 1 }
+$X = 0
+
+obj.execute
+$X  #=> 1
+
+
+Dynamic Dispatch
+  - decide which method to call at runtime
+
+  method_to_call = :reverse
+  obj = "abc"
+
+  obj.send(method_to_call) #=> "cba"
+
+Dynamic Method
+  - decide how to define a method at runtime
+
+  class C
+  end
+
+  C.class_eval do 
+    define_method :my_method do 
+      "a dynamic method"
+    end
+  end
+
+  obj = C.new
+  obj.my_method       #->  "a dynamic method"
+
+Dynamic Proxy
+  - dynamically forward method calls to another object
+
+class MyDynamicProxy
+  def initialize(target)
+    @target = target
+  end
+
+  def method_missing(name, *args, &block)
+    "results: #{@target.send(name, *args, &block)}"
+  end
+end
+
+obj = MyDynamicProxy.new("a string")
+obj.reverse   # => "result: gnirts a"
+
+Flat Scope
+  -  use a closure to share variables between two scopes
+
+class C
+  def an_attribute
+    @attr
+  end
+end
+
+obj = C.new
+a_variable = 100
+
+#flat scope
+
+obj.instance_eval do 
+  @attr = a_variable
+end
+
+obj.an_attribute    #->  100
+
+Ghost Method
+  - response to a message that doesn't have an associated method
+
+class C
+  def method_missing(name, *args)
+    name.to_s.reverse
+  end
+end
+
+obj = C.new
+obj.my_ghost_method   # => "dohtem_tsohg_ym"
+
+Hook Method
+
+override a method to intercept object model events
+
+$INHERITORS = []
+
+class C
+  def self.inherited(subclass)
+    $INHERITORS << sublcass
+  end
+end
+
+Kernel Method
+  - define a method in module Kernel to make method available to all objects
+
+module Kernel
+  def a_method
+    "a kernel method"
+  end
+end
+
+Object Extension
+  - define singleton methods by mixing a module into an object's singleton class
+
+obj = Object.new
+
+module M
+  def my_method
+    'a singleton method'
+  end
+end 
+
+class << obj
+  include M
+end
+
+obj.my_method       #=> "a singleton method"
+
+Prepended Wrapper
+
+module M
+  def reverse
+    "x#{super}x"
+  end
+end
+
+String.class_eval do
+  prepend M
+end
+
+"abc".reverse     #=> "xcbax"
+
+
+
+Refinement
+  - patch a class until the end of the file or until the end 
+  of the including module
+
+module MyRefinement
+  refine String do
+    def reverse 
+      "my reverse"
+    end
+  end
+end
+
+"abc".reverse   #=>  "cba"
+using MyRefinement
+"abc".reverse   #=>   "my reverse"
+
+Refinement Wrapper
+  - call an unrefined method from its refinement
+
+module StringRefinement
+  refine String do
+    def reverse
+      "x#{super}x"
+    end
+  end
+end
+
+using StringRefinement
+"abc".reverse     # => "xcbax"
+
+
+Sandbox
+  -  execute untrusted code in a safe environment
+
+def sandbox(&code)
+  proc {
+    $SAFE = 2
+    yield
+  }.call
+end
+
+begin 
+  sandbox { File.delete 'a_file' }
+resuce Exception => ex
+  ex
+end
+
+
+Scope Gate
+  - isolate a scope with the class, module, or def keyword
+
+a = 1
+defined? a    #=>   "local-variable"
+
+module MyModule
+  b = 1
+  defined? a  #-> nil
+  defined? b  #=> local-variable
+end
+
+defined? a    #=> "local-variable"
+defined? b    #=>  nil
+
+
+Self Yield
+  - pass self to the block
+
+class Person
+  attr_accesor :name, :surname
+
+  def initialize
+    yield self
+  end
+end 
+
+joe = Person.new do |p|
+  p.name = 'Joe'
+  p.surname = 'Smith'
+end
+
+
+Shared Scope
+  - share variables among multiple contexts in the same Flat Scope
+
+lamda {
+  shared = 10
+  self.class.class_eval do
+    define_method :counter do
+      shared
+    end
+    define_method :down do 
+      shared -= 1
+    end
+  end
+}.call
+
+counter       #=> 10
+3.times { down }
+counter       #=> 7
+
+
+Singleton Method
+  - define a method on a single object
+
+obj = "abc"
+
+class << obj
+  def my_singleton_method
+    "x"
+  end
+end
+
+obj.my_singleton_method       #=>   "x"
+
+
+
+String of Code
+  - evaluate a string of Ruby code
+
+  my_string_of_code = "1 + 1"
+  eval(my_string_of_code) #=> 2
+
+Symbol To Proc
+  - convert a symbol to a block that calls a single method
+
+  [1, 2, 3, 4].map(&:even?)
+
+
 
