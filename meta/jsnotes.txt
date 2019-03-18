@@ -113,8 +113,6 @@ Proxy.revocable() used to create a revocable Proxy object
 proxy can be revoked via function `revoked` which switches proxy on and off
 
 
-
-
 Reflection
 
   Reflect is built-in object that provides interceptable JS operations. methods are
@@ -124,4 +122,3 @@ Reflection
 
   Reflect.has(Object, 'assign');      // true
 
-  
