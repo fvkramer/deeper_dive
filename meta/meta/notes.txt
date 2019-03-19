@@ -1,0 +1,1703 @@
+Ch1
+
+Compile Time vs Runtime distinction
+code in C has compile time and runtime. langauge constructs such as variables an functions lost after 
+compile time. Become machine code
+
+therefore, C has no metaprogramming or introspection because code lost after compilation
+in C++, some language constructs survive compilation, therefore can ask object for its class.
+In java, distinction between compile time and runtime less clear.
+
+No compilation in Ruby. Dynamic, interpreted. metaprogramming
+ruby simple language, but has subtleties.
+
+"can an object call a private method on another object of the same class?
+"how can you define class methods by importing a module?
+
+all language complications derived from few rules
+
+Ch2
+
+metaprogramming manipulates language constructs such as classes, modules, instance variable, etc.
+everything stems from "object model"
+
+ruby executes code within a class as it would execute any other code
+
+class D
+def x; 'x'; end
+end
+class D
+def y; 'y'; end
+end
+
+obj = D.new
+obj.x
+obj.y
+
+The first time this code is run, class D does not exist, therefore it creates it
+second time the code is run, class D exists so therefore the method is just monkey patched
+
+
+therefore, class keyword in Ruby closer to scope operator than class declaration
+creates classes that don't exist as a side effect. Main effect is to move into context o classes
+
+therefore, can always open existing classes and modify them on the fly. "monkey patching"
+or "Open Class"
+
+class String
+  def generic_method
+  end
+end
+
+libraries or modules that are imported can use open classes.
+
+problem is when overriding methods already existing on previous classes
+
+in Java and other languages, there is conneciton between object's class and its instance variables.
+in Ruby, there isn't.
+instance variables like keys in hash. each ruby object can have different keysvalues pairs
+
+enum.grep(pattern) -> returns array of every item that matches pattern
+
+instance variables belong to object. methods belong to class.
+similar to JS design. constructor function + methods on prototype
+
+"MyClass has a method named my_method" -> wrong. implies MyClass.my_method()
+"my_method is an instance method of MyClass" -> correct. 
+instance method when talking about it in terms of class. method when talking about it in relation to object
+
+
+String.instance_methods == "abc".methods  ---> true
+String.methods == "abc".methods  ---> false
+
+
+**** Classes are objects. ****
+
+.class -> instance of what class
+.superclass -> what inheriting from
+
+Array.superclass   -> Object
+Object.superclass   -> BasicObject
+BasicObject.superclass   -> nil
+
+In Ruby, Class and Module differ by three methods. [:new, :allocate, :superclass]
+
+Module meant to be included somewhere in code. Class meant to be instantiated. 
+can be used interchangeable though
+
+Modules directories. Constants files. Scoped underneath
+
+any reference beginning with uppercase letter, including names of classes and modules
+is a constant
+
+constants uniquely idenitifed by paths. constants use double colon as separator
+
+module M
+class C
+X = 'a constant'
+end
+C::X # => "a constant"
+end
+M::C::X # => "a constant"
+
+::Y => # ' a root level constant '
+
+
+module M
+  class C
+    module M2
+      Module.nesting # => [M::C::M2, M::C, M]
+    end
+  end
+end
+
+Constants and files very similar. 
+
+
+module Rake
+  class Task
+    # ...
+
+module Rake is a container of constants. therefore, namespaced
+
+Rake::Task
+
+***
+Classes are just objects.Object are instance variables with link to class.
+object's methods live in object's class.
+
+Class object of class which is subclass of Module.
+
+
+****
+class TEXT -> class Text  --> error because monkeypatched module Text used by Action Mailer librray
+
+load('motd.rb') -> loads variables and constants. variables get deleted, constants do not. pollutes namespace.
+load('motd.rb', true) -> creates anonymous module to namespace constants, then deletes it
+
+require ' ' -> imports libraries
+
+
+***
+
+When method in Ruby called,
+
+1. Method Lookup
+  - when called, ruby looks into object's class and finds method there. (obj. just holds instance variabels. methods live in classes)
+  - receiver: object you call method on.  my_string.reverse()  my_string is receiver
+  - ancestor chain: superclass path traverse
+
+  - therefore, method lookup: ruby goes into receiver's class and climbs ancestors chain until it finds the method
+
+  - if no superclass specified, implicitly inherits from Object
+  - superclass is instance method on object classes for lookup
+  - class.ancestors gives ancestor chain. Kernel included even though its a module
+  - modules included in ancestral chain. module inserted above including class
+
+  module M1
+    def my_method
+    end
+  end
+
+  class C
+    include M1
+  end
+
+  class D < C; end
+
+  D.ancestors => [D, C, M1, Object, Kernel, BasicObject]
+
+  class C2
+    prepend M2
+  end
+
+  class D2 < C2; end
+
+  D2.ancestors => [D2, C2, M2, C2, Object, Kernel, BasicObject]
+
+  If multiple modules included/prepended, only the first instance listed in ancestor array
+
+  Kernel
+
+  print method part of Kernel. class Object includes Kernel
+  Every line of Ruby always executed inside object, so can call instance methods of Kernel from anywhere
+
+  Adding method to Kernel means adding method everywhere
+
+2. Method execution. Needs self.
+
+  def my_method
+    temp = @x + 1
+    my_other_method(temp)
+  end
+
+  When executing this above method, need to determine to whome @x belongs and on what my_other_method called
+  Every line of Ruby code executed inside an object - current object. referred to with self
+
+
+  private
+
+  cannot call private methods with explicit receiver. needs to be implicit self
+
+  When not in a scope, Ruby self is main. main is an object also top-level context
+
+  In a class, self is the class
+
+  class MyClass
+    self          #=>   MyClass
+  end
+
+
+  To circumvent monkeypatching problem,
+
+  refinement with using
+
+  module StringExtensions
+    refine String do
+      def reverse
+        "esrever"
+      end
+    end
+  end
+
+  module StringStuff
+    using StringExtensions
+    "my_string".reverse # => "esrever"
+  end
+
+"my_string".reverse # => "gnirts_ym"
+
+
+
+Chapter 3 Methods
+
+
+Below code is repetitive:
+
+
+class Computer
+  def initialize(computer_id, data_source)
+    @id = computer_id
+    @data_source = data_source
+  end
+
+  def mouse
+    info = @data_source.get_mouse_info(@id)
+    price = @data_source.get_mouse_price(@id)
+    result = "Mouse: #{info} ($#{price})"
+    return "* #{result}" if price >= 100
+    result
+  end
+
+  def cpu
+    info = @data_source.get_cpu_info(@id)
+    price = @data_source.get_cpu_price(@id)
+    result = "Cpu: #{info} ($#{price})"
+    return "* #{result}" if price >= 100
+    result
+  end
+
+  def keyboard
+    info = @data_source.get_keyboard_info(@id)
+    price = @data_source.get_keyboard_price(@id)
+    result = "Keyboard: #{info} ($#{price})"
+    return "* #{result}" if price >= 100
+    result
+  end
+end
+
+Dyanmic Methods:
+    - call and define methods dynamically
+
+    - invoking methods is sending method to an object
+
+    1.send( :+, 2)   #=> 3
+
+ex:
+
+Pry, the ruby command-line interpreter, is an object with interpreter's configuration
+
+pry = Pry.new
+pry.memory_size = 101
+pry.memory_Size   # => 101
+
+
+pry.refresh(:memory_size => 99, :quiet => false)
+pry.memory_size # => 99
+pry.quiet # => false
+
+def refresh(options = {})
+  defaults[:memory_size] = Pry.memory_size
+  self.memory_size = options[:memory_size] if options[:memory_size]
+
+  defaults[:quiet] = Pry.quiet
+  self.quiet = options[:quiet] if options[:quiet]
+end
+
+lots of duplication for each attribute. instead:
+
+def refresh(options = {}) 
+  defaults = {}
+  attributes = [ :input, :output, :commands, :print, :quiet,
+                  :exception_handler, :hooks, :custom_compeltions,
+                  :prompt, :memory_size, :extra_stick_locals ]
+
+  attributes.each do |attribute|
+    defaults[attribute] = Pry.send attribute
+  end
+
+  defaults.merge!(options).each do |key, value|
+    send("#{key}=", value) if respond_to?("#{key}=")
+  end
+
+  true
+end
+
+send calls methods dynamically.
+methods can also be defined dynamically
+
+class MyClass
+  define_method :my_method do |my_arg|
+    my_arg * 3
+  end
+end
+
+define_method ==>  can define name of method at runtime
+
+first refactoring
+
+class Computer
+  def initialize(computer_id, data_source)
+    @id = computer_id
+    @data_source = data_source
+  end
+
+  def mouse
+    component :mouse
+  end
+
+  def cpu
+    component :cpu
+  end
+
+  def keyboard
+    component :keyboard
+  end
+
+  def component(name)
+    info = @data_source.send "get_#{name}_info", @id
+    price = @data_source.send "get_#{name}_price", @id
+    result = "#{name.capitalize}: #{info} ($#{price})"
+    return "* #{result}" if price >= 100
+    result
+  end
+end
+
+
+class Computer
+  def initialize(computer_id, data_source)
+    @id = computer_id
+    @data_source = data_source
+  end
+
+   def self.define_component(name)
+    define_method(name) do
+      info = @data_source.send "get_#{name}_info", @id
+      price = @data_source.send "get_#{name}_price", @id
+      result = "#{name.capitalize}: #{info} ($#{price})"
+      return "* #{result}" if price >= 100
+      result
+    end
+   end
+
+   define_component :mouse
+   define_component :cpu
+   define_component :keyboard
+end
+
+data_source.methods.grep(/^get_(.*)_info$/) { Computer.define_component $1 }
+
+Above two solutions based on Dynamic Dispatch (send) and Dynamic Methods
+
+Next solution:
+
+Ghost Methods and dynamic proxies
+
+since no compiler to enforce method calls, can call a method that doesn't exist
+
+class Lawyer; end
+nick = Lawyer.new
+nick.talk_simple
+
+NoMethodError: undefined method 'talk_simple' for #<Lawyer:..."
+BasicObject#method_missing 
+
+
+class Lawyer
+  def method_missing(method, *args)
+    puts "You called: #{method}(#{args.join(', ')})"
+    puts "(You also passed it a block)" if block_given?
+  end
+end
+
+bob = Lawyer.new
+bob.talk_simple('a', 'b') do
+# a block
+end
+
+You called: talk_simple(a, b)
+(You also passed it a block)
+
+override:
+  def method_missing()
+  end
+
+Dynamic Proxy - object that catches ghost methods and forwards them to another object
+
+.responds_to?
+.instance_methods
+
+
+Ch. 4 Blocks
+
+Aside from blocks normally, blocks also control scope. Very important in metaprogramming
+
+blocks are one memeber of family of "callable objects" which include procs and lambdas
+
+blocks are an idea from functional programming languages such as LISP. idea architecture different than classes, objects
+
+
+Kernel#block_given?
+
+def a_method
+  return yield if block_given?
+  'no block'
+end
+
+
+module Kernel
+  def using(resource)
+    begin
+      yield
+    ensure
+      resource.dispose
+    end
+  end
+end
+
+whenever code runs, its made up of two things
+  - code itself
+  - its binding
+
+
+Kernel#local_variables
+  - lists all local variables in current scope
+
+Bindings in one scope separate from bindings in another scope
+
+top level instance variables / global variables
+
+@var = "top-level @var"
+$var = global level var
+
+Scope Gates 
+    - three places where program leaves previous scope and opens new one:
+        - Class definitions
+        - Module definitions
+        - Methods
+
+"Flattening Scope in Ruby"
+  - replace scope gate with method call, capture current bindings in closure, pass closure to method
+  pg. 83. review this. 
+
+BasicObject#instance_eval - evaluates block in context of an object
+
+class MyClass
+  def initialize
+    @v = 1
+  end
+end
+
+obj = MyClass.new
+
+obj.instance_eval do 
+  self
+  @v
+end
+
+block evaluated with receiver as self.
+Can call block passed to instance_eval a Context Probe - a snipet of code that dipped inside object to do something there
+
+
+
+class C
+  def initialize
+    @x = 1
+  end
+end
+
+class D
+  def twisted_method
+    @y = 2
+    C.new.instance_eval { "@x: #{@x}, @y: #{@y}" }
+  end
+end
+
+D.new.twisted_method # => "@x: 1, @y: "
+
+self switches, therefore @y is nil
+
+
+to merge @x and @y:
+
+
+class D
+  def twisted_method
+    @y = 2
+    C.new.instance_exec(@y)  {|y| "@x: #{@x}, @y: #{y}" }
+  end
+end
+
+D.new.twisted_method # => "@x: 1, @y: 2"
+
+This breaks encapsulation because self changes
+
+### Context probing also useful in testing: 
+
+In Padrino framework, there is a Logger class that manages all logging. Can context probe
+in tests instead of creating new class
+
+
+should 'not log static assets by default' do
+  # ...
+  get "/images/something.png"
+  assert_equal "Foo", body
+  assert_match "", Padrino.logger.log.string
+end
+
+should 'allow turning on static assets logging' do
+  Padrino.logger.instance_eval{ @log_static = true }
+  # ...
+  get "/images/something.png"
+  assert_equal "Foo", body
+  assert_match /GET/, Padrino.logger.log.string
+  Padrino.logger.instance_eval{ @log_static = false }
+
+
+Callable Objects
+
+  - most things in ruby are objects, except for blocks
+  - however, blocks can be stored and executed later ( Proc is a block that has been stored into object )
+    - inc = Proc.new {|x| x + 1 }
+      inc.call(2)
+
+Ruby also defines two Kernel methods to convert block into Proc:
+  
+  1. lambda
+    
+    dec = lambda {|x| x + 1}
+    dec.class     # => Proc
+    dec.call(2)    # => 3
+
+  2. proc
+
+    dec = proc {|x| x + 1}
+
+  The & operator
+    1. want to pass block to another method ( or another block )
+    2. want to convert block into Proc
+
+  to say "I want to use this block", need to attach binding to it.
+  Must be last argument in method and prefaced with an &
+
+  def math(a,b)
+    yield(a, b)
+  end
+
+  def do_math(a,b, &operation)
+    math(a, b, &operation)
+  end
+
+  do_math(2, 3) {|x, y| x * 6}   #=> 6
+
+The real
+meaning of the & is this: “I want to take the block that is passed to this method
+and turn it into a Proc.” Just drop the &, and you’ll be left with a Proc again:
+
+def my_method(&the_proc)
+  the_proc
+end
+
+To convert back, use & again
+
+def my_method(greeting)
+  '#{greeting}, #{yield}'
+end
+
+my_proc = proc {"Bill"}
+my_method("hello", &my_proc)
+
+Procs vs. Lambdas 
+
+.lambda?  => true or false if lambda
+
+Lambda return keyword returns from lambda. For Proc, it returns out of scope
+
+def another_double
+  p = Proc.new { return 10 }
+  result = p.call
+  return result * 2 # unreachable code!
+end
+
+another_double  #=> 10
+
+p = Proc.new { return 10 }
+double(p)    #=>  LocalJumpError
+
+return 10    #=> LocalJumpError
+  tries to return from top level scope where p defined. gives error
+
+2nd DIFFERENCE
+
+The way they check arguments
+
+Arity of two means it accepts two arguments
+
+If calling lambda with wrong arity, it fails with ArgumentError
+If calling proc with wrong arity, it fills arguments with own expectations
+
+
+
+Method Objects
+
+class MyClass
+  def initialize(value)
+    @x = value
+  end
+
+  def my_method
+    @x
+  end
+end
+
+object = MyClass.new(1)
+m = object.method :my_method
+m.call
+
+Kernel#method   => returns method object that is callable
+
+lambda evaluated in scope its defined in (it's a closure)
+method object valued in scope of its object
+
+Unbound Method
+  - method detached from original class or module
+  - Method#unbind
+
+Callable Objects - snippets of code that can evaluate and carry own scope with them
+  - Blocks, Procs, Lambdas, Methods
+
+  **DSL - language that focuses on specific domain
+    - most general purpose languages not created for specific problem
+      -ex: Money in Java
+    GPL (General Purpose Language - C++ , Ruby)
+
+    Internal DSL - language that lives within a larger, general-purpose language
+    Languages that have own parser are called external DSLs.
+
+
+DSL
+
+def event(description)
+  puts "ALERT: #{description}" if yield
+end
+load 'events.rb'
+
+event 'an event that always happens' do
+  true
+end
+
+event 'an event that never happens" do
+  false
+end
+
+
+setup do
+  puts "Setting up sky"
+  @sky_height = 100
+end
+
+setup do
+  puts "Setting up mountains"
+  @mountains_height = 200
+end
+
+event "the sky is falling" do
+  @sky_height < 300
+end
+
+event "it's getting closer" do
+  @sky_height < @mountains_height
+end
+
+event "whoops... too late" do
+  @sky_height < 0
+end
+
+
+
+Ch. 5 Class Definitions
+
+when defining a class, not just dictting how objects behave in future, but also running code
+
+1. Class Macros       2. Around Aliases     3. Singleton Classes
+
+
+class MyClass
+  puts 'Hello'
+end
+
+> Hello
+
+result = class MyClass
+  self
+end
+
+> result #=> MyClass
+
+Whenever in a Ruby program, always have a current object ( self )
+Likewise, always have a current class (or module )
+
+How to find current Class?
+
+  1. At top of program, current class is Object, the class of main. (when defining method at top level, method instance method of Object)
+  2. In a method, current class is the class of the current object
+  3. When opening class with the class keyword (or module with the module keyword) that class becomes current class
+
+How to obtain class you don't know the name of?
+For example, if want to add a method to a class?
+
+def add_method_to(a_class)
+  # TODO: define method m() on a_class
+end 
+
+like adding CRUD to Rails
+
+class_eval()
+
+Module#class_eval   evaluates block in context of existing class:
+
+def add_method_to(a_class)
+  a_class.class_eval do
+    def m
+      'Hello!'
+    end
+  end 
+end
+
+add_method_to String
+"abc".m     #=>   "Hello!"
+
+instance_eval     -     only changes self
+class_eval        -     changes self and current class
+
+
+Conclusion: If have reference to class, can open class with class_eval or module_eval
+
+Class Instance Variables
+
+class MyClass
+  @my_var = 1
+  def self.read; @my_var; end
+  def write; @my_var = 2; end
+  def read; @my_var; end
+end
+
+obj = MyClass.new
+obj.read      #=> nil
+obj.write
+obj.read      #=> 2
+MyClass.read  #=> 1
+
+two instance variables are made in two different scopes
+
+Class instance variable can be accessed only by class itself
+
+- can also use class variables, denoted @@
+- to store instance variables in a class
+
+class C
+  @@v = 1
+end
+
+class variables different from class instance variables. class variables can be accessed
+by subclasses and by regular instance methods
+
+One problem:
+
+@@v = 1
+
+class MyClass
+  @@v = 2
+end
+
+@@v     #=> 2
+
+Class variables dont belong to classes, they belong to class hierarchies. since
+@@v defined in context of main, it belong's to main's class Object and to all descendents
+
+
+Singleton Methods
+
+Ruby allows you to add a method to a single object
+
+str = "regulat string"
+
+def str.title?
+  self.upcase == self
+end
+
+str.title?
+str.methods.grep(/title?/) 
+str.singleton_methods
+
+In static languages such as Java, object has type T because it belongs to class T
+In dynammic language such as Ruby, the "type" of an object not related to class. it's the 
+set of methods to which an object can respond
+
+only matters if object responds to method
+
+Classes are just objects and class names are constants
+
+class methods are just singleton methods
+
+
+Class Macros
+
+ruby objects don't have attributes
+
+class MyClass
+  def my_attribute=(value)
+    @my_attribute = value
+  end
+
+  def my_attribute
+    @my_attribute
+  end
+end
+
+obj = MyClass.new
+obj.my_attribute = 'x'
+obj.my_attribute    #=> 'x'
+
+class MyClass
+  attr_accessor :my_attribute
+end
+
+Module::attr_*
+
+class methods that are used in class definition. Appear like keywords because self is implicit
+
+Class Macros Applied
+
+class Book
+  def title # ...
+
+  def subtitle # ...
+
+  def lend_to(user)
+    puts "Lending to..."
+
+  def self.deprecate(old_method, new_method)
+    define_method(old_method) do |*args, &block|
+      warn "Warning: #{old_method}() is deprecated. Use #{new_method}()."
+      send(new_method, *args, &block)
+    end
+  end
+
+  deprecate :GetTitle, :title
+  deprecate :LEND_TO_USER, :lend_to
+  deprecate :title2, :subtitle
+
+end
+
+
+Singleton Advanced
+
+normal method lookup of object or class method means going into class and then up inheritance.
+
+where do singleton methods belong? 
+  - they can't live on objects and cannot live on classes or else become instance methods
+
+objects in ruby can have hidden class called:
+    - singleton class
+    - metaclass
+    - eigenclass
+
+To get into scope of singleton class,
+
+class << an_object
+  //code here
+end
+
+
+"abc".singleton_class
+singleton classes have only single instance and can't be inherited. 
+singleton class is where object's Singleton Methods live
+
+
+Method Wrappers
+
+- wrap a method inside another method
+- if there is method that other code uses, but you need to change its functionality,
+wrap it in another method to get more functionality - aliases
+
+
+can alias names
+
+class MyClass
+  def my_method; 'my_method()'; end
+  alias_method :m, :my_method
+end
+
+obj = MyClass.new
+obj.my_method == obj.m
+
+aliasing common in all Ruby code and libraries. for ex: String#size == String#length
+
+class String
+  alias_method :size, :length
+
+More Method Wrappers
+
+refinement - patch of code slapped directly over class
+One more thing... - if call super from a refined method, can call the original unrefined method
+
+module StringRefinement
+  refine String do
+    def length
+      super > 5 ? 'long' : 'short'
+    end
+  end
+end
+
+using StringRefinement
+
+'War and Peace'.length      # => "long"
+
+
+ch. 6
+
+Kernel#eval           - code is just text
+
+eval takes a string that contains ruby code and evaluates it
+
+array = [10, 20]
+element = 30
+eval("array << element")    #=>     [10, 20, 30]
+    - useful when dynamically evaluating code
+
+POSSIBLE_VERBS = ['get', 'put', 'post', 'delete']
+
+POSSIBLE_VERBS.each do |m|
+  eval <<-end_eval
+    def #{m}(path, *args, &b)
+      r[path].#{m}(*args, &b)
+    end
+  end_eval
+end
+
+
+Binding Objects
+  - whole scope packaged as object
+  - can create a Binding to capture local scope and carry it around
+    - can then execute code in that scope by using Binding object with eval
+
+class MyClass
+  def my_method
+    @x
+    binding
+  end
+end
+
+b = MyClass.new.my_method
+
+eval "@x", b      #=> 1
+
+instance_eval and class_eval can also take strings
+
+array = ['a', 'b', 'c']
+x = 'd'
+
+array.instance_eval 'self[1] = x'
+array   #=> ['a', 'd', 'c']
+
+####
+The biggest problem with string eval is security
+
+Code Injection
+
+def explore_array(method)
+  code = "['a', 'b', 'c'].#{method}"
+  puts "Exploring: #{code}"
+  eval code
+end
+
+works fine, unless someone injects code. for example:
+
+object_id; Dir glob('*')  ->  gets object_id and then lists all files in directory
+
+Can now run all sorts of code to affect computer
+
+One way to protect against user input is with
+
+$SAFE global variable
+
+[1 - 4]
+
+
+How ERB works:
+ex:
+
+  <p><strong>Wake up!</strong>It's sunny <%= Time.new.strftime("%A) %></p>
+
+  require 'erb'
+  erb = ERB.new(File.read('template.rhtml'))
+  erb.run
+
+
+## need methodt o take snippet of Ruby code extraced from template and pass it to eval
+
+  class ERB
+    def result(b=new_toplevel)
+      if @safe_level
+        proc {
+          $SAFE = @safe_level
+          eval(@src, b, (@filename || '(erb)'), 0)
+        }.call 
+      else
+        eval(@src, b, (@filename || '(erb'), 0)
+      end
+    end
+  end
+
+  ####
+  new_toplevel is a method that retusn copy of TOPLEVEL_BINDING
+  @src contains content of code tag
+  @safe_level contains safe level required by user
+  uses Proc as clean room to evaluated code in separate scope
+
+
+  Kernel#load and Kernel#require take name of a source file and execute code from that file
+  Similar to how eval works. Similar to evaluating a string
+
+
+  Hook Methods
+
+    - hook methods are methods that can catch object model events.
+        ex:   classes inherited, modules mixed into classes, methods defined, etc.
+
+  class String
+    def self.inherited(subclass)
+      puts "#{self} was inherited by #{subclass}"
+    end
+  end
+
+  class MyString < String; end
+
+  > String was inherited by MyString
+
+  can override this method to do useful stuff
+
+  Ruby provides many hooks. Can override all of these
+
+  Module#included, #prepended, #method_added, #method_removed, #method_undefined
+
+  Module#included one of the most widely used hooks
+
+  ex:
+
+
+  module M; end
+
+  class C
+    def self.include(*modules)
+      puts "Called: C.include(#{modules})"
+      super
+    end
+
+    include M
+  end
+
+  > Called: C.include(M)
+
+  There is difference between Module#include and Module#included. Module#included
+  is specifically a hook method. Made for when module gets included. Module#include is an instance method
+  that actually needs to include some code. That is why in above exaple, we call super 
+  to preserve functionality of original include method
+  
+
+
+
+Rails Notes
+
+ActiveRecord::Base
+
+most important class. Subclasses classes create objects from DB.
+
+class macros like has_many, belongs_to
+ghost methods that define attributes
+automatically maps Duck objects to ducks table
+
+autload is class macro. Finds the proper code
+
+
+module ActiveRecord
+  module Validations
+    def self.included(base)
+      base.extend ClassMethods
+    end
+
+    module ClassMethods
+      def validats_length_of(*attrs)
+    end
+
+    def valid?
+    end
+  end
+end
+
+1. Instance methods of Validations becomes instance methods of ActiveRecord
+2. Ruby calls ::included class method passing ActiveRecord::Base into base argument
+    - this makes instance methods of ClassMethods class methods of ActiveRecord::Base
+    - modules includer is called 'base class'
+
+
+### Problem if multiple include/extends in code. If a second level inclusion,
+first level inclusion receives class methods of second level inclusion
+
+ActiveSupport::Concern
+
+  - attempts to solve above problem
+Concern gives instance methods and class methods
+
+require 'active_support'
+
+module MyConcern
+  extend ActiveSupport::Concern
+
+  def an_instance_method; "an instance method"; end
+
+  module ClassMethods
+    def a_class_method; "a class method"; end
+  end
+end
+
+class MyClass
+  include MyConcern
+end
+
+MyClass.new.an_instance_method    #=> an instance method
+MyClass.a_class_method          #=> a class method
+
+#######
+
+module ActiveSupport
+  module Concern
+    class MultipleIncludedBlocks < StandardError    #:nodoc;
+      def initialize
+        super "Cannot define multiple 'included' blocks for a Concern"
+      end
+    end
+
+    def self.extended(base)
+      base.instance_variable_set(:@_dependencies, [])
+    end
+  end
+end
+
+
+
+Module#append_features      -  method part of Ruby library. append_features called 
+just like included, however it is initially empty. only exists if you want to override it
+
+module M
+  def self.append_features(base); end
+end
+
+class C
+  include M
+end
+
+C.ancestors   #   =>  [ C, Object, Kernel, BasicObject ]
+  # overwriting append_features => module M not included in ancestry
+
+module ActiveSupport
+  module Concern
+    def append_features(base)
+      if base.instance_variable_defined?(:@_dependencies)
+        base.instance_variable_get(:@_dependencies) << self
+        return false
+      else
+        return false if base < self
+        @_dependencies.each { |dep| base.send(:include, dep) }
+        super
+        base.extend const_get(:ClassMethods) \
+          if const_defined?(:ClassMethods)
+          # ...
+      end
+    end
+  end
+end
+
+
+In Summary:
+
+  Concern is a minimalist dependency management system wrapped into a single module
+  In most languages, there aren't many ways to bind components together. Some inherit
+  or others delegate to an object. to get fancy, can create library to manage dependencies
+
+  * Metaprogramming should keep things simple. If it gets too convoluted, most likely trash it
+
+Ch. 11  - Rise and Fall of alias_method_chain
+    
+    alias_method (target, feature) => creates two aliases
+
+    protected - methods can be called by any instance of defining class or subclasses
+            - supports explicit receivers
+    private   - can only be called from within the calling object
+
+Ch. 12  - Attribute Methods
+
+
+require 'active_record'
+ActiveRecord::Base.establish_connection :adapter  =>  'sqlite3',
+                                        :database   =>  'dbfile'
+
+ActiveRecord::Base.connection.create_table :tasks do |t|
+  t.string    :description
+  t.boolean   :completed
+end
+
+class Task < ActiveRecord::Base; end
+
+task = Task.new
+task.description = 'Clean up garage'
+task.completed = true
+task.save
+
+task.description
+task.completed?
+
+
+When Ruby searching for method, walks up entire ancestor chain and then calls
+method_missing if nothing found
+
+
+Ruby Idioms
+
+  Mimic Methods - used to make code cleaner. people often mistake puts for language keyword, but actually a method
+
+  puts 'Hello, world'
+  puts('Hello, world')
+
+  obj.my_attriute = 'some value'
+  obj.my_attribute=('some value')
+
+  mimicry - animal disguising itself as another species
+
+
+  class Help < R '/help'
+  end
+
+  In this context, R is a method that takes '/help' as arg and returns a class
+
+
+  Nil Guard
+
+  a ||= []
+
+class MyClas
+  attr_accessor :my_attribute
+
+  def set_attribute(n)
+    my_attribute = n
+  end
+end
+
+obj = MyClass.new
+obj.set_attribute 10
+obj.my_attribute        #=>     nil
+
+Result: Ruby confused whether assignment to local variable caleld my_attribute
+or a call to a Mimic Method called my_attribute=. When in doubt, Ruby defaults to former
+
+to Solve:
+
+  def set_attribute(n)
+    self.my_attribute = n
+  end
+
+module Faraday
+  class << self
+    def new(url = nil, options = {})
+      #...
+      Faraday::Connection.new(url, options, &block)
+    end
+  end
+end
+
+['a', 'b', 'c'].push('d').shift.tap { |x| puts x }.upcase.next
+
+class Object
+  def tap
+    yield self
+    self
+  end
+end
+
+Symbol#to_proc
+
+class Symbol
+  def to_proc
+    Proc.new { |x| x.send(self)}
+  end
+end
+
+
+DSL
+
+langauge that focuses on specific problem
+
+
+
+SPELLS
+
+###   AROUND ALIAS
+  - call the previous, aliased version of a method from a redefined method
+
+class String
+  alias_method :old_reverse, :reverse
+
+  def reverse
+    "x#{old_reverse}x
+  end
+end
+
+"abc".reverse  #=> "xcbax"
+
+###   BLANK SLATE
+  - remove methods from an object to turn them into Ghost Methods
+
+class C
+  def method_mission(name, *args)
+    "a Ghost Method"
+  end
+end
+
+obj = C.new
+obj.to_s      #=>   "#<C:0x007fbb2a10d2f8>"
+
+class D < BasicObject
+  def method_mission(name, *args)
+    "a Ghost Method"
+  end
+end
+
+blank_slate = D.new
+blank_slate.to_s    #=>   "a Ghost Method"
+
+Class Instance Variable
+
+class C
+  @my_class_instance_variable = "some value"
+
+  def self.class_attribute
+    @my_class_instance_variable
+  end
+end
+
+C.class_attribute   #=> "some value"
+
+
+Class Macro
+  - use class method in class definition
+
+  class C; end
+
+  class << C
+    def my_macro(arg)
+      "my_macro(#{arg}) called"
+    end
+  end
+
+  class C
+    my_macro :x   #=> "my_macro(x) called"
+  end
+
+
+Clean Room
+  - use an object as environment in which to evaluate block
+
+  class CleanRoom
+    def a_useful_method(x); x * 2; end
+  end
+
+  CleanRoom.new.instance_eval { a_useful_method(3) }   #=>  6
+
+Code Processor
+
+File.readlines("a_file_containing_lines_of_ruby.txt").each do |line|
+  puts "#{line.chomp} ==> #{eval(line)}"
+end
+
+# >> 1 + 1 ==> 2
+# >> 3 * 2 ==> 6
+# >> Math.log10(100) ==> 2.0
+
+Context Probe
+  -  execute a block to access information in an object's context
+
+class C
+  def initialize
+    @x = "a private instance variable"
+  end
+end 
+
+obj = C.new
+obj.instance_eval { @x }
+
+Deferred Evaluation
+  - store a piece of code and its context in proc or lambda for evaluation later
+
+class C
+  def store(&block)
+    @my_code_capsule = block
+  end
+
+  def execute
+    @my_code_capsule.call
+  end
+end
+
+obj = C.new
+obj.store { $X = 1 }
+$X = 0
+
+obj.execute
+$X  #=> 1
+
+
+Dynamic Dispatch
+  - decide which method to call at runtime
+
+  method_to_call = :reverse
+  obj = "abc"
+
+  obj.send(method_to_call) #=> "cba"
+
+Dynamic Method
+  - decide how to define a method at runtime
+
+  class C
+  end
+
+  C.class_eval do 
+    define_method :my_method do 
+      "a dynamic method"
+    end
+  end
+
+  obj = C.new
+  obj.my_method       #->  "a dynamic method"
+
+Dynamic Proxy
+  - dynamically forward method calls to another object
+
+class MyDynamicProxy
+  def initialize(target)
+    @target = target
+  end
+
+  def method_missing(name, *args, &block)
+    "results: #{@target.send(name, *args, &block)}"
+  end
+end
+
+obj = MyDynamicProxy.new("a string")
+obj.reverse   # => "result: gnirts a"
+
+Flat Scope
+  -  use a closure to share variables between two scopes
+
+class C
+  def an_attribute
+    @attr
+  end
+end
+
+obj = C.new
+a_variable = 100
+
+#flat scope
+
+obj.instance_eval do 
+  @attr = a_variable
+end
+
+obj.an_attribute    #->  100
+
+Ghost Method
+  - response to a message that doesn't have an associated method
+
+class C
+  def method_missing(name, *args)
+    name.to_s.reverse
+  end
+end
+
+obj = C.new
+obj.my_ghost_method   # => "dohtem_tsohg_ym"
+
+Hook Method
+
+override a method to intercept object model events
+
+$INHERITORS = []
+
+class C
+  def self.inherited(subclass)
+    $INHERITORS << sublcass
+  end
+end
+
+Kernel Method
+  - define a method in module Kernel to make method available to all objects
+
+module Kernel
+  def a_method
+    "a kernel method"
+  end
+end
+
+Object Extension
+  - define singleton methods by mixing a module into an object's singleton class
+
+obj = Object.new
+
+module M
+  def my_method
+    'a singleton method'
+  end
+end 
+
+class << obj
+  include M
+end
+
+obj.my_method       #=> "a singleton method"
+
+Prepended Wrapper
+
+module M
+  def reverse
+    "x#{super}x"
+  end
+end
+
+String.class_eval do
+  prepend M
+end
+
+"abc".reverse     #=> "xcbax"
+
+
+
+Refinement
+  - patch a class until the end of the file or until the end 
+  of the including module
+
+module MyRefinement
+  refine String do
+    def reverse 
+      "my reverse"
+    end
+  end
+end
+
+"abc".reverse   #=>  "cba"
+using MyRefinement
+"abc".reverse   #=>   "my reverse"
+
+Refinement Wrapper
+  - call an unrefined method from its refinement
+
+module StringRefinement
+  refine String do
+    def reverse
+      "x#{super}x"
+    end
+  end
+end
+
+using StringRefinement
+"abc".reverse     # => "xcbax"
+
+
+Sandbox
+  -  execute untrusted code in a safe environment
+
+def sandbox(&code)
+  proc {
+    $SAFE = 2
+    yield
+  }.call
+end
+
+begin 
+  sandbox { File.delete 'a_file' }
+resuce Exception => ex
+  ex
+end
+
+
+Scope Gate
+  - isolate a scope with the class, module, or def keyword
+
+a = 1
+defined? a    #=>   "local-variable"
+
+module MyModule
+  b = 1
+  defined? a  #-> nil
+  defined? b  #=> local-variable
+end
+
+defined? a    #=> "local-variable"
+defined? b    #=>  nil
+
+
+Self Yield
+  - pass self to the block
+
+class Person
+  attr_accesor :name, :surname
+
+  def initialize
+    yield self
+  end
+end 
+
+joe = Person.new do |p|
+  p.name = 'Joe'
+  p.surname = 'Smith'
+end
+
+
+Shared Scope
+  - share variables among multiple contexts in the same Flat Scope
+
+lamda {
+  shared = 10
+  self.class.class_eval do
+    define_method :counter do
+      shared
+    end
+    define_method :down do 
+      shared -= 1
+    end
+  end
+}.call
+
+counter       #=> 10
+3.times { down }
+counter       #=> 7
+
+
+Singleton Method
+  - define a method on a single object
+
+obj = "abc"
+
+class << obj
+  def my_singleton_method
+    "x"
+  end
+end
+
+obj.my_singleton_method       #=>   "x"
+
+
+
+String of Code
+  - evaluate a string of Ruby code
+
+  my_string_of_code = "1 + 1"
+  eval(my_string_of_code) #=> 2
+
+Symbol To Proc
+  - convert a symbol to a block that calls a single method
+
+  [1, 2, 3, 4].map(&:even?)
+
+
+

@@ -1,0 +1,124 @@
+ES2015, gained Proxy and Reflect objects that can intercept and define custom 
+behavior for fundamental language operations. w/ these two objects, can program
+at meta level of JS
+
+
+const handler = {
+  get: (target, name) => (name in target ? target[name] : 42),
+};
+
+const p = new Proxy({}, handler);
+p.a = 1;
+console.log(p.a, p.b);
+
+first arg into proxy constructor is the target. second arg is an arg handler
+ - here, an object that is proxied will not return undefined when getting undefined
+ properties, but instead calls the get trap and returns 42
+
+ handler - placeholder object that contains traps
+ traps - methods that provide property access
+ target - object which proxy virtualizes. storage backend for the proxy. invariants
+  regarding object non-extensiblity are verified against the target
+invariants - semantics that remain unchanged when implementing custom operations
+  - if invariants of handler violated, TypeError thrown
+
+
+Handlers and Traps
+
+
+Handler/Trap
+
+
+handler.getPrototypeOf()
+      Interceptions: 
+        Object.getPrototypeOf()
+        Object.prototype.isPrototypeOf()
+        instanceof
+        
+handler.setPrototypeOf()
+      Interceptions:
+        Object.setPrototypeOf()
+        Reflect.setPrototypeOf()
+
+handler.isExtensible()
+      Interceptions:
+        Object.isExtensible()
+        Reflect.isExtensible()
+
+handler.preventExtensions()
+      Interceptions:
+        Object.preventExtensions()
+        Reflect.preventExtensions()
+
+handler.getOwnPropertyDescriptor()
+      Interceptions:
+        Object.getOwnPropertyDescriptor()
+        Reflect.getOwnPropertyDescriptor()
+
+handler.defineProperty()
+      Interceptions:
+        Object.defineProperty()
+        Reflect.defineProperty()
+
+handler.has()
+      Interceptions:
+        property query -    foo in proxy
+        inherited property query -   foo in Object.create(proxy)
+        Reflect.has()
+
+handler.get()
+      Interceptions:
+        property access -   proxy[foo] and proxy.bar
+        Reflect.get()
+
+handler.set()
+      Interceptions:
+        Property assignment:    proxy[foo] =  bar,    proxy.foo = bar
+        Reflect.set()
+
+handler.deleteProperty()
+      Interceptions:
+        propery deletion:   delete proxy[food] and delete proxy.foo
+        Reflect.deleteProperty()
+
+handler.enumerate()
+      Interceptions:
+        property enumeration:   for (var name in proxy) {}
+        Reflect.enumerate()
+
+handler.ownKeys()
+      Interceptions:
+        Object.getOwnPropertyNames()
+        Object.getOwnPropertySymbols()
+        Object.keys()
+        Reflect.ownKeys()
+
+handler.apply()
+      Interceptions:
+        proxy(...args)
+        Function.prototype.apply()
+        Function.prototype.call()
+        Reflect.apply()
+
+handler.construct()
+      Interceptions:
+        new proxy(...args)
+        Reflect.construct()
+
+
+
+Revocable Proxy
+
+Proxy.revocable() used to create a revocable Proxy object
+proxy can be revoked via function `revoked` which switches proxy on and off
+
+
+Reflection
+
+  Reflect is built-in object that provides interceptable JS operations. methods are
+  the same as those of proxy handlers. 
+
+  Reflect helps with forwarding default operations from handler to the target
+
+  Reflect.has(Object, 'assign');      // true
+
