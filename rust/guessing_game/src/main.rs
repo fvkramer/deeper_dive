@@ -73,10 +73,32 @@
 //arrays in rust have fixed length and all elements must be same type
 //tuples fixed length and can have different element types
 
-fn main() {
-  for number in (1..4).rev() {
-    println!("{}!", number);
-  }
+// fn main() {
+//   for number in (1..4).rev() {
+//     println!("{}!", number);
+//   }
 
-  println!("LIFTOFF!");
+//   println!("LIFTOFF!");
+// }
+
+// fn main() {
+//   let mut s = String::from("hello");
+//   // let mut s = "hello";
+
+//   s.push_str(", world");
+
+//   println!("{}", s);
+// }
+
+fn main() {
+  let s1 = String::from("hello");
+
+  let len = calculate_length(&s1);
+  // let len = &s1.len();
+
+  println!("The length of '{}' is {}", s1, len);
+}
+
+fn calculate_length(s: &String) -> usize {
+  s.len()
 }
